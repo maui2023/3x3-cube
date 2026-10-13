@@ -54,11 +54,19 @@
             </div>
           </div>
 
+          <!-- Snap Feedback Toast -->
+          <div id="snapToast" class="snap-toast" hidden></div>
+
           <!-- Top Bar inside Viewfinder -->
           <div class="viewfinder-topbar">
             <div id="badgeFaceStep" class="badge-face-step">
               <span id="badgeColorTag" class="face-color-tag" style="background-color: var(--cube-white)"></span>
               <span id="badgeStepText">Langkah 1/6: Muka Atas</span>
+            </div>
+
+            <div id="badgeLiveDetected" class="badge-live-tag" title="Warna Pusat Semasa">
+              <span id="liveDetectedDot" class="live-dot"></span>
+              <span id="liveDetectedText">Dikesan: -</span>
             </div>
 
             <div class="viewfinder-tools">
@@ -178,25 +186,75 @@
           <!-- Chips for moves rendered here -->
         </div>
 
-        <!-- Interactive 2D Unfolded Cube Net -->
-        <div class="cube-net-wrap">
-          <div id="netTitle" class="net-title">Pandangan Bentangan 2D Kiub</div>
-          <div id="cubeNetGrid" class="cube-net-grid">
-            <!-- 4 cols x 3 rows classic cross net -->
-            <div class="net-empty"></div>
-            <div id="netFaceU" class="net-face net-face-u" title="Muka Atas (U)"></div>
-            <div class="net-empty"></div>
-            <div class="net-empty"></div>
+        <!-- Interactive 3D Cube Visualization & 2D Net -->
+        <div class="cube-visualizer-card">
+          <div class="visualizer-header">
+            <div id="visualizerTitle" class="visualizer-title">Visualisasi 3D Kiub Interaktif</div>
+            <div class="visualizer-tabs">
+              <button id="btnView3D" class="view-tab-btn active" type="button" title="Paparan 3D">
+                <span>🎲</span> <span id="labelTab3D">3D</span>
+              </button>
+              <button id="btnView2D" class="view-tab-btn" type="button" title="Bentangan 2D">
+                <span>🗺️</span> <span id="labelTab2D">2D</span>
+              </button>
+            </div>
+          </div>
 
-            <div id="netFaceL" class="net-face net-face-l" title="Muka Kiri (L)"></div>
-            <div id="netFaceF" class="net-face net-face-f" title="Muka Hadapan (F)"></div>
-            <div id="netFaceR" class="net-face net-face-r" title="Muka Kanan (R)"></div>
-            <div id="netFaceB" class="net-face net-face-b" title="Muka Belakang (B)"></div>
+          <!-- 3D Viewport Scene (Default) -->
+          <div id="cube3dViewport" class="cube3d-viewport">
+            <div class="cube3d-stage">
+              <div id="cube3dElement" class="cube3d-element">
+                <!-- 6 Faces in 3D: U, R, F, D, L, B -->
+                <div class="cube3d-face face-u" data-face="U" title="Muka Atas (U)"></div>
+                <div class="cube3d-face face-r" data-face="R" title="Muka Kanan (R)"></div>
+                <div class="cube3d-face face-f" data-face="F" title="Muka Hadapan (F)"></div>
+                <div class="cube3d-face face-d" data-face="D" title="Muka Bawah (D)"></div>
+                <div class="cube3d-face face-l" data-face="L" title="Muka Kiri (L)"></div>
+                <div class="cube3d-face face-b" data-face="B" title="Muka Belakang (B)"></div>
+              </div>
+              <div class="cube3d-shadow"></div>
+            </div>
 
-            <div class="net-empty"></div>
-            <div id="netFaceD" class="net-face net-face-d" title="Muka Bawah (D)"></div>
-            <div class="net-empty"></div>
-            <div class="net-empty"></div>
+            <!-- Drag hint pill -->
+            <div class="cube3d-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span id="cube3dHintText">Seret dengan jari atau tetikus untuk memusingkan kiub 3D</span>
+            </div>
+
+            <!-- Quick View Preset Angles Bar -->
+            <div id="cube3dAnglesBar" class="cube3d-angles-bar">
+              <button class="angle-btn active" type="button" data-rx="-22" data-ry="-32" title="Sudut Asal">🔄 <span class="angle-text">Asal</span></button>
+              <button class="angle-btn" type="button" data-rx="0" data-ry="0" title="Hadapan">👁️ <span class="angle-text">Depan</span></button>
+              <button class="angle-btn" type="button" data-rx="-75" data-ry="0" title="Atas">⬆️ <span class="angle-text">Atas</span></button>
+              <button class="angle-btn" type="button" data-rx="0" data-ry="-90" title="Kanan">➡️ <span class="angle-text">Kanan</span></button>
+              <button class="angle-btn" type="button" data-rx="0" data-ry="90" title="Kiri">⬅️ <span class="angle-text">Kiri</span></button>
+              <button class="angle-btn" type="button" data-rx="75" data-ry="0" title="Bawah">⬇️ <span class="angle-text">Bawah</span></button>
+              <button class="angle-btn" type="button" data-rx="0" data-ry="180" title="Belakang">🔙 <span class="angle-text">Belakang</span></button>
+            </div>
+          </div>
+
+          <!-- 2D Unfolded Net View (Toggleable) -->
+          <div id="cubeNetContainer" class="cube-net-wrap" hidden>
+            <div id="netTitle" class="net-title">Pandangan Bentangan 2D Kiub</div>
+            <div id="cubeNetGrid" class="cube-net-grid">
+              <!-- 4 cols x 3 rows classic cross net -->
+              <div class="net-empty"></div>
+              <div id="netFaceU" class="net-face net-face-u" title="Muka Atas (U)"></div>
+              <div class="net-empty"></div>
+              <div class="net-empty"></div>
+
+              <div id="netFaceL" class="net-face net-face-l" title="Muka Kiri (L)"></div>
+              <div id="netFaceF" class="net-face net-face-f" title="Muka Hadapan (F)"></div>
+              <div id="netFaceR" class="net-face net-face-r" title="Muka Kanan (R)"></div>
+              <div id="netFaceB" class="net-face net-face-b" title="Muka Belakang (B)"></div>
+
+              <div class="net-empty"></div>
+              <div id="netFaceD" class="net-face net-face-d" title="Muka Bawah (D)"></div>
+              <div class="net-empty"></div>
+              <div class="net-empty"></div>
+            </div>
           </div>
         </div>
 

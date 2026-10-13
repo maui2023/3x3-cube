@@ -327,6 +327,59 @@ html, body {
   display: inline-block;
 }
 
+/* Live Detected Center Face Tag */
+.badge-live-tag {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  display: inline-block;
+  background-color: var(--cube-white);
+  transition: background-color 0.15s ease;
+}
+
+/* Snap Feedback Toast */
+.snap-toast {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  z-index: 25;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: snapToastFade 0.25s ease-out;
+}
+
+@keyframes snapToastFade {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .viewfinder-tools {
   display: flex;
   gap: 8px;
@@ -973,12 +1026,225 @@ html, body {
 }
 
 /* ==========================================================================
-   Interactive 2D Unfolded Cube Net
+   Interactive 3D Cube Visualizer & 2D Net
    ========================================================================== */
-.cube-net-wrap {
+:root {
+  --cube-size: 160px;
+  --cube-half: 80px;
+}
+@media (min-width: 440px) {
+  :root {
+    --cube-size: 190px;
+    --cube-half: 95px;
+  }
+}
+
+.cube-visualizer-card {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.visualizer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.visualizer-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visualizer-tabs {
+  display: flex;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border-subtle);
+}
+
+.view-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.view-tab-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.4);
+}
+
+/* 3D Viewport Scene */
+.cube3d-viewport {
+  width: 100%;
+  min-height: 290px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: radial-gradient(circle at 50% 38%, rgba(30, 41, 59, 0.75) 0%, rgba(9, 13, 22, 0.98) 100%);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  padding: 14px 8px 10px 8px;
+  box-sizing: border-box;
+}
+
+.cube3d-stage {
+  position: relative;
+  width: var(--cube-size);
+  height: var(--cube-size);
+  margin: 12px auto 20px auto;
+  perspective: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cube3d-element {
+  width: var(--cube-size);
+  height: var(--cube-size);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease-out;
+  transform: rotateX(-22deg) rotateY(-32deg);
+  cursor: grab;
+}
+
+.cube3d-element.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.cube3d-element.animating {
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 6 Faces in 3D Space */
+.cube3d-face {
+  position: absolute;
+  width: var(--cube-size);
+  height: var(--cube-size);
+  background: #090d16;
+  border: 2px solid #1e293b;
+  border-radius: 8px;
+  padding: 3px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  backface-visibility: visible;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.cube3d-face.face-u { transform: rotateX(90deg) translateZ(var(--cube-half)); filter: brightness(1.06); }
+.cube3d-face.face-d { transform: rotateX(-90deg) translateZ(var(--cube-half)); filter: brightness(0.8); }
+.cube3d-face.face-f { transform: rotateY(0deg) translateZ(var(--cube-half)); filter: brightness(1.0); }
+.cube3d-face.face-b { transform: rotateY(180deg) translateZ(var(--cube-half)); filter: brightness(0.85); }
+.cube3d-face.face-l { transform: rotateY(-90deg) translateZ(var(--cube-half)); filter: brightness(0.92); }
+.cube3d-face.face-r { transform: rotateY(90deg) translateZ(var(--cube-half)); filter: brightness(0.97); }
+
+/* Glowing highlight on active move face */
+.cube3d-face.active-move {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.85), inset 0 0 10px rgba(56, 189, 248, 0.4);
+  animation: activeFaceGlow 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes activeFaceGlow {
+  from { box-shadow: 0 0 14px rgba(56, 189, 248, 0.6), inset 0 0 8px rgba(56, 189, 248, 0.3); }
+  to { box-shadow: 0 0 26px rgba(56, 189, 248, 0.95), inset 0 0 14px rgba(56, 189, 248, 0.6); }
+}
+
+.cube3d-sticker {
+  border-radius: 4px;
+  background: #334155;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  transition: background-color 0.25s ease;
+}
+
+.cube3d-shadow {
+  position: absolute;
+  width: calc(var(--cube-size) * 1.15);
+  height: calc(var(--cube-size) * 1.15);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0) 70%);
+  transform: rotateX(90deg) translateZ(calc(var(--cube-half) * -1.35));
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cube3d-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  pointer-events: none;
+}
+
+.cube3d-angles-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px 4px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.angle-btn {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.angle-btn:hover, .angle-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Interactive 2D Unfolded Cube Net
+   ========================================================================== */
+.cube-net-wrap {
+  background: transparent;
   padding: 14px;
   display: flex;
   flex-direction: column;

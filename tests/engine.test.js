@@ -226,6 +226,23 @@ describe('Adaptive Color Classifier Engine', () => {
       'red',
     ]);
   });
+
+  it('calibrating green center does not alter or contaminate white or yellow centroids', () => {
+    const engine = new ColorEngine();
+    const greenSample = [10, 180, 70]; // Vivid green
+    const whiteSample = [250, 250, 252]; // White
+    const yellowSample = [252, 220, 20]; // Yellow
+
+    // Calibrate ONLY green/F
+    engine.calibrateCenters({ green: greenSample });
+
+    // Assert green is classified as green
+    assert.equal(engine.classifyColor(greenSample), 'green');
+    // White sample must still classify as white, NOT green or yellow
+    assert.equal(engine.classifyColor(whiteSample), 'white');
+    // Yellow sample must still classify as yellow, NOT green or white
+    assert.equal(engine.classifyColor(yellowSample), 'yellow');
+  });
 });
 
 // ============================================================================
@@ -454,5 +471,23 @@ describe('Bilingual Localization System (i18n)', async () => {
     CubeI18n.setLanguage('en');
     const msgEn = CubeI18n.t('solutionReady', { moves: 14, time: 320 });
     assert.equal(msgEn, 'Solution found in 14 moves (320ms)!');
+  });
+
+  it('provides all 3D visualization and snap feedback translations in BM and EN', () => {
+    CubeI18n.setLanguage('ms');
+    assert.equal(CubeI18n.t('cube3dTitle'), 'Visualisasi 3D Kiub Interaktif');
+    assert.ok(CubeI18n.t('cube3dHint').includes('3D'));
+    assert.equal(CubeI18n.t('view3D'), 'Paparan 3D');
+    assert.equal(CubeI18n.t('view2D'), 'Bentangan 2D');
+    assert.equal(CubeI18n.t('angleReset'), 'Asal');
+    assert.ok(CubeI18n.t('faceSavedToast', { name: 'Hadapan (Hijau)', color: 'Hijau', count: 3 }).includes('disimpan'));
+
+    CubeI18n.setLanguage('en');
+    assert.equal(CubeI18n.t('cube3dTitle'), 'Interactive 3D Cube Visualization');
+    assert.ok(CubeI18n.t('cube3dHint').includes('3D'));
+    assert.equal(CubeI18n.t('view3D'), '3D View');
+    assert.equal(CubeI18n.t('view2D'), '2D Net');
+    assert.equal(CubeI18n.t('angleReset'), 'Reset');
+    assert.ok(CubeI18n.t('faceSavedToast', { name: 'Front (Green)', color: 'Green', count: 3 }).includes('saved'));
   });
 });

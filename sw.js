@@ -2,7 +2,7 @@
  * Service Worker for 3x3 Cube Solver
  * Enables 100% offline usage on mobile devices and GitHub Pages.
  */
-const CACHE_NAME = 'cube-solver-v1';
+const CACHE_NAME = 'cube-solver-v2';
 
 const ASSETS_TO_CACHE = [
   './',

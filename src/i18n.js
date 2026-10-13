@@ -110,6 +110,20 @@ const DICTIONARY = {
       moveCounter: "Langkah {current} daripada {total}",
       solvedCongrats: "🎉 Kiub Berjaya Diselesaikan!",
       cubeNetTitle: "Pandangan Bentangan 2D Kiub",
+      cube3dTitle: "Visualisasi 3D Kiub Interaktif",
+      cube3dHint: "Seret dengan jari atau tetikus untuk memusingkan kiub 3D",
+      view3D: "Paparan 3D",
+      view2D: "Bentangan 2D",
+      detectedLive: "Dikesan",
+      faceSavedToast: "Muka {name} ({color}) berjaya disimpan! ({count}/6)",
+      faceUpdatedToast: "Muka {name} ({color}) dikemas kini!",
+      angleReset: "Asal",
+      angleFront: "Depan",
+      angleTop: "Atas",
+      angleRight: "Kanan",
+      angleLeft: "Kiri",
+      angleBottom: "Bawah",
+      angleBack: "Belakang",
 
       // Plain language move translations
       moves: {
@@ -250,6 +264,20 @@ const DICTIONARY = {
       moveCounter: "Move {current} of {total}",
       solvedCongrats: "🎉 Cube Solved Successfully!",
       cubeNetTitle: "Interactive 2D Cube Net",
+      cube3dTitle: "Interactive 3D Cube Visualization",
+      cube3dHint: "Drag with finger or mouse to rotate cube in 3D",
+      view3D: "3D View",
+      view2D: "2D Net",
+      detectedLive: "Detected",
+      faceSavedToast: "Face {name} ({color}) saved! ({count}/6)",
+      faceUpdatedToast: "Face {name} ({color}) updated!",
+      angleReset: "Reset",
+      angleFront: "Front",
+      angleTop: "Top",
+      angleRight: "Right",
+      angleLeft: "Left",
+      angleBottom: "Bottom",
+      angleBack: "Back",
 
       // Plain language move translations
       moves: {

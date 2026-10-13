@@ -5,7 +5,7 @@
 
 import Cube from './src/engine/lib/cube-bundle.js';
 import { storage } from './src/engine/storage.js';
-import { colorEngine, ALL_COLORS } from './src/engine/color-engine.js';
+import { colorEngine, ALL_COLORS, COLOR_TO_FACE } from './src/engine/color-engine.js';
 import { validateCube, cubeStateToFaceletString, EXPECTED_CENTERS } from './src/engine/validator.js';
 import CubeI18n from './src/i18n.js';
 
@@ -15,6 +15,7 @@ const captureCanvas = document.getElementById('captureCanvas');
 const captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
 const reticleBox = document.getElementById('reticleBox');
 const centerIndicatorDot = document.getElementById('centerIndicatorDot');
+const snapToast = document.getElementById('snapToast');
 
 // Header
 const brandTitle = document.getElementById('brandTitle');
@@ -25,6 +26,9 @@ const btnLangEn = document.getElementById('btnLangEn');
 const badgeFaceStep = document.getElementById('badgeFaceStep');
 const badgeColorTag = document.getElementById('badgeColorTag');
 const badgeStepText = document.getElementById('badgeStepText');
+const badgeLiveDetected = document.getElementById('badgeLiveDetected');
+const liveDetectedDot = document.getElementById('liveDetectedDot');
+const liveDetectedText = document.getElementById('liveDetectedText');
 const btnTorch = document.getElementById('btnTorch');
 const btnFlipCam = document.getElementById('btnFlipCam');
 
@@ -62,7 +66,6 @@ const moveBadgeLarge = document.getElementById('moveBadgeLarge');
 const moveTextHeading = document.getElementById('moveTextHeading');
 const moveTextStep = document.getElementById('moveTextStep');
 const movesRibbon = document.getElementById('movesRibbon');
-const netTitle = document.getElementById('netTitle');
 const btnPrevMove = document.getElementById('btnPrevMove');
 const btnNextMove = document.getElementById('btnNextMove');
 const btnPlayPause = document.getElementById('btnPlayPause');
@@ -72,7 +75,30 @@ const btnResetSolution = document.getElementById('btnResetSolution');
 const speedSlider = document.getElementById('speedSlider');
 const speedLabel = document.getElementById('speedLabel');
 
-// Net Faces
+// 3D Visualizer & 2D Net
+const visualizerTitle = document.getElementById('visualizerTitle');
+const btnView3D = document.getElementById('btnView3D');
+const btnView2D = document.getElementById('btnView2D');
+const labelTab3D = document.getElementById('labelTab3D');
+const labelTab2D = document.getElementById('labelTab2D');
+const cube3dViewport = document.getElementById('cube3dViewport');
+const cube3dElement = document.getElementById('cube3dElement');
+const cube3dHintText = document.getElementById('cube3dHintText');
+const cube3dAnglesBar = document.getElementById('cube3dAnglesBar');
+const cubeNetContainer = document.getElementById('cubeNetContainer');
+const netTitle = document.getElementById('netTitle');
+
+// 3D Cube Faces
+const cube3dFaceEls = {
+  U: document.querySelector('.cube3d-face.face-u'),
+  R: document.querySelector('.cube3d-face.face-r'),
+  F: document.querySelector('.cube3d-face.face-f'),
+  D: document.querySelector('.cube3d-face.face-d'),
+  L: document.querySelector('.cube3d-face.face-l'),
+  B: document.querySelector('.cube3d-face.face-b'),
+};
+
+// 2D Net Faces
 const netFaceEls = {
   U: document.getElementById('netFaceU'),
   L: document.getElementById('netFaceL'),
@@ -117,6 +143,17 @@ const FACE_CENTER_MAP = {
   B: 'blue'
 };
 
+const NOTATION_TO_COLOR = {
+  U: 'white',
+  R: 'red',
+  F: 'green',
+  D: 'yellow',
+  L: 'orange',
+  B: 'blue'
+};
+
+const FACE_OFFSETS = { U: 0, R: 9, F: 18, D: 27, L: 36, B: 45 };
+
 // --- App State ---
 let currentFaceIndex = 0; // 0..5
 let capturedFaces = [null, null, null, null, null, null]; // Each is array of 9 CubeColors
@@ -125,6 +162,17 @@ let currentFacingMode = 'environment';
 let isTorchOn = false;
 let solverWorker = null;
 let liveScanRafId = null;
+
+// 3D Cube Orbital State
+let cubeRotX = -22;
+let cubeRotY = -32;
+let isCubeDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let startRotX = 0;
+let startRotY = 0;
+let activeVisualizerView = '3D'; // '3D' | '2D'
+let toastTimer = null;
 
 // Solution State
 let solutionMoves = [];
@@ -197,7 +245,11 @@ function init() {
 
   // 5. Build static UI structures
   initNetGridCells();
+  init3DCubeCells();
+  setup3DCubeInteraction();
+  initVisualizerTabs();
   initModalPaletteButtons();
+  render3DCubeFromDraft();
 
   // 6. Update texts & guide
   updateAllTexts();
@@ -339,25 +391,55 @@ function toggleTorch() {
   setTorch(!isTorchOn);
 }
 
-// --- Live Center Color Sampling for Dot Indicator ---
+// --- Live Center Color Sampling for Dot Indicator & Topbar Tag ---
 function startLiveCenterSampling() {
   function sampleFrame() {
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       if (vw > 0 && vh > 0) {
-        captureCanvas.width = 32;
-        captureCanvas.height = 32;
-        const cx = Math.floor(vw * 0.475);
-        const cy = Math.floor(vh * 0.475);
-        const sz = Math.max(10, Math.floor(Math.min(vw, vh) * 0.05));
+        const minDim = Math.min(vw, vh);
+        const boxSize = minDim * 0.65;
+        const cellSize = boxSize / 3;
+        const patchRadius = Math.max(2, Math.floor(cellSize * 0.1));
 
-        captureCtx.drawImage(video, cx, cy, sz, sz, 0, 0, 32, 32);
-        const p = captureCtx.getImageData(16, 16, 1, 1).data;
-        const classifiedColor = colorEngine.classifyColor([p[0], p[1], p[2]]);
+        captureCanvas.width = vw;
+        captureCanvas.height = vh;
+        captureCtx.drawImage(video, 0, 0, vw, vh);
+
+        const cx = Math.floor(vw / 2);
+        const cy = Math.floor(vh / 2);
+
+        const pData = captureCtx.getImageData(
+          Math.max(0, cx - patchRadius),
+          Math.max(0, cy - patchRadius),
+          patchRadius * 2 + 1,
+          patchRadius * 2 + 1
+        ).data;
+
+        let sumR = 0, sumG = 0, sumB = 0, count = 0;
+        for (let i = 0; i < pData.length; i += 4) {
+          sumR += pData[i];
+          sumG += pData[i + 1];
+          sumB += pData[i + 2];
+          count++;
+        }
+
+        const avgR = Math.round(sumR / count);
+        const avgG = Math.round(sumG / count);
+        const avgB = Math.round(sumB / count);
+
+        const classifiedColor = colorEngine.classifyColor([avgR, avgG, avgB]);
         const hex = COLOR_HEX_MAP[classifiedColor] || '#38bdf8';
         centerIndicatorDot.style.backgroundColor = hex;
-        centerIndicatorDot.style.borderColor = (classifiedColor === 'white' ? '#000' : '#fff');
+        centerIndicatorDot.style.borderColor = (classifiedColor === 'white' ? '#000000' : '#ffffff');
+
+        if (liveDetectedDot && liveDetectedText) {
+          liveDetectedDot.style.backgroundColor = hex;
+          const detectedFace = COLOR_TO_FACE[classifiedColor];
+          const faceShort = detectedFace ? CubeI18n.t(`faces.${detectedFace}.short`) : CubeI18n.t(`colors.${classifiedColor}`);
+          liveDetectedText.textContent = `${CubeI18n.t('detectedLive') || 'Dikesan'}: ${faceShort} (${detectedFace || '-'})`;
+        }
       }
     }
     liveScanRafId = requestAnimationFrame(sampleFrame);
@@ -483,7 +565,7 @@ function sampleCanvasRegion(srcCanvas, rect) {
 // --- Snap Face Action ---
 function snapCurrentFace() {
   if (!video.videoWidth || !video.videoHeight) {
-    alert('Camera feed is still loading, please wait.');
+    alert(CubeI18n.t('cameraFeedLoading') || 'Camera feed is still loading, please wait.');
     return;
   }
 
@@ -507,41 +589,87 @@ function snapCurrentFace() {
   // Classify into CubeColors
   const classifiedColors = rgbSamples.map(sample => colorEngine.classifyColor(sample));
 
-  // Dynamic Center Calibration
-  const currentFaceKey = FACE_KEYS[currentFaceIndex];
-  const expectedCenter = FACE_CENTER_MAP[currentFaceKey];
-  classifiedColors[4] = expectedCenter; // Invariant center identity
-  colorEngine.calibrateCenters({ [currentFaceKey]: rgbSamples[4] });
+  // Identify face by detected center sticker (index 4)
+  const detectedCenterColor = classifiedColors[4];
+  const detectedFaceKey = COLOR_TO_FACE[detectedCenterColor];
 
-  // Save into state
-  capturedFaces[currentFaceIndex] = classifiedColors;
+  // Target face key: match identified center, or fallback to current guide face if ambiguous
+  const targetFaceKey = detectedFaceKey || FACE_KEYS[currentFaceIndex];
+  const targetFaceIndex = FACE_KEYS.indexOf(targetFaceKey);
+
+  // Preserve the true detected center color (never force overwrite with wrong face color)
+  classifiedColors[4] = detectedCenterColor;
+
+  // Calibrate dynamically ONLY for this specific detected color centroid (never contaminate other centroids)
+  colorEngine.calibrateCenters({ [detectedCenterColor]: rgbSamples[4] });
+
+  // Save into state at the identified face slot
+  const isUpdating = capturedFaces[targetFaceIndex] !== null;
+  capturedFaces[targetFaceIndex] = classifiedColors;
   persistDraft();
+
+  // Visual feedback toast
+  const faceInfo = CubeI18n.t(`faces.${targetFaceKey}`);
+  const colorName = CubeI18n.t(`colors.${detectedCenterColor}`);
+  const capturedCount = capturedFaces.filter(f => f !== null).length;
+  if (isUpdating) {
+    showSnapToast(CubeI18n.t('faceUpdatedToast', { name: faceInfo.name, color: colorName }));
+  } else {
+    showSnapToast(CubeI18n.t('faceSavedToast', { name: faceInfo.name, color: colorName, count: capturedCount }));
+  }
 
   // Update UI
   btnRetake.disabled = false;
   renderCapturedPreviews();
 
-  // Advance to next face if not all captured
-  if (currentFaceIndex < 5) {
-    currentFaceIndex++;
+  // Update 3D preview
+  if (cubeStatesHistory.length === 0) {
+    render3DCubeFromDraft();
+  }
+
+  // Advance guide to next uncaptured face
+  const nextEmptyIndex = capturedFaces.findIndex(f => f === null);
+  if (nextEmptyIndex !== -1) {
+    currentFaceIndex = nextEmptyIndex;
     renderRotationGuide();
   } else {
     // All 6 faces captured!
+    currentFaceIndex = targetFaceIndex;
+    renderRotationGuide();
     validateAndCheckSolveReady();
   }
+}
+
+function showSnapToast(msg) {
+  if (!snapToast) return;
+  snapToast.textContent = msg;
+  snapToast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    if (snapToast) snapToast.hidden = true;
+  }, 2300);
 }
 
 function retakeLastFace() {
   if (capturedFaces[currentFaceIndex] !== null) {
     capturedFaces[currentFaceIndex] = null;
-  } else if (currentFaceIndex > 0) {
-    currentFaceIndex--;
-    capturedFaces[currentFaceIndex] = null;
+  } else {
+    // Find last captured face in reverse order and clear it
+    for (let i = 5; i >= 0; i--) {
+      if (capturedFaces[i] !== null) {
+        capturedFaces[i] = null;
+        currentFaceIndex = i;
+        break;
+      }
+    }
   }
   persistDraft();
   btnRetake.disabled = (capturedFaces.every(f => f === null));
   renderCapturedPreviews();
   renderRotationGuide();
+  if (cubeStatesHistory.length === 0) {
+    render3DCubeFromDraft();
+  }
   validateAndCheckSolveReady();
 }
 
@@ -555,8 +683,12 @@ function resetAllFaces() {
   solveActionWrap.hidden = true;
   validationAlert.hidden = true;
   stopPlay();
+  cubeStatesHistory = [];
+  solutionMoves = [];
+  currentMoveIndex = -1;
   renderCapturedPreviews();
   renderRotationGuide();
+  render3DCubeFromDraft();
 }
 
 // --- Validation & Solver Preparation ---
@@ -743,7 +875,8 @@ function updatePlayerState() {
   btnPrevMove.disabled = (currentMoveIndex <= -1);
   btnNextMove.disabled = (currentMoveIndex >= solutionMoves.length - 1);
 
-  // 4. Update 2D Unfolded Cube Net
+  // 4. Update 3D Cube and 2D Unfolded Cube Net
+  render3DCube();
   render2DCubeNet();
 }
 
@@ -808,10 +941,176 @@ function togglePlayPause() {
   }
 }
 
+// --- Interactive 3D Cube & 2D Net Visualizer ---
+function init3DCubeCells() {
+  for (const f of ['U', 'R', 'F', 'D', 'L', 'B']) {
+    const el = cube3dFaceEls[f];
+    if (!el) continue;
+    el.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cube3d-sticker';
+      cell.dataset.face = f;
+      cell.dataset.idx = i;
+      el.appendChild(cell);
+    }
+  }
+}
+
+function setup3DCubeInteraction() {
+  if (!cube3dViewport || !cube3dElement) return;
+
+  function onPointerDown(e) {
+    if (e.target.closest('.cube3d-angles-bar') || e.target.closest('button')) return;
+
+    isCubeDragging = true;
+    cube3dElement.classList.add('dragging');
+    cube3dElement.classList.remove('animating');
+
+    dragStartX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0].clientX) || 0;
+    dragStartY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0].clientY) || 0;
+    startRotX = cubeRotX;
+    startRotY = cubeRotY;
+  }
+
+  function onPointerMove(e) {
+    if (!isCubeDragging) return;
+    const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0].clientX) || 0;
+    const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0].clientY) || 0;
+    const dx = clientX - dragStartX;
+    const dy = clientY - dragStartY;
+
+    cubeRotY = startRotY + dx * 0.7;
+    // Clamping pitch prevents flipping awkwardly
+    cubeRotX = Math.max(-85, Math.min(85, startRotX - dy * 0.7));
+
+    cube3dElement.style.transform = `rotateX(${cubeRotX}deg) rotateY(${cubeRotY}deg)`;
+  }
+
+  function onPointerUp() {
+    if (isCubeDragging) {
+      isCubeDragging = false;
+      cube3dElement.classList.remove('dragging');
+    }
+  }
+
+  cube3dViewport.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  cube3dViewport.addEventListener('touchstart', onPointerDown, { passive: true });
+  window.addEventListener('touchmove', onPointerMove, { passive: true });
+  window.addEventListener('touchend', onPointerUp);
+
+  // Setup preset angle buttons
+  const angleBtns = cube3dAnglesBar ? cube3dAnglesBar.querySelectorAll('.angle-btn') : [];
+  angleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rx = parseFloat(btn.dataset.rx);
+      const ry = parseFloat(btn.dataset.ry);
+      set3DCubeAngle(rx, ry);
+      angleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+function set3DCubeAngle(rx, ry) {
+  cubeRotX = rx;
+  cubeRotY = ry;
+  if (!cube3dElement) return;
+
+  cube3dElement.classList.add('animating');
+  cube3dElement.style.transform = `rotateX(${cubeRotX}deg) rotateY(${cubeRotY}deg)`;
+  setTimeout(() => {
+    cube3dElement.classList.remove('animating');
+  }, 460);
+}
+
+function initVisualizerTabs() {
+  if (btnView3D && btnView2D) {
+    btnView3D.addEventListener('click', () => switchVisualizerView('3D'));
+    btnView2D.addEventListener('click', () => switchVisualizerView('2D'));
+  }
+}
+
+function switchVisualizerView(view) {
+  activeVisualizerView = view;
+  const is3D = view === '3D';
+  if (btnView3D) btnView3D.classList.toggle('active', is3D);
+  if (btnView2D) btnView2D.classList.toggle('active', !is3D);
+  if (cube3dViewport) cube3dViewport.hidden = !is3D;
+  if (cubeNetContainer) cubeNetContainer.hidden = is3D;
+
+  if (is3D) {
+    render3DCube();
+  } else {
+    render2DCubeNet();
+  }
+}
+
+function render3DCube() {
+  if (cubeStatesHistory.length > 0) {
+    const stateStr = cubeStatesHistory[currentMoveIndex + 1];
+    if (!stateStr || stateStr.length !== 54) return;
+
+    for (const f of ['U', 'R', 'F', 'D', 'L', 'B']) {
+      const container = cube3dFaceEls[f];
+      if (!container) continue;
+      const stickers = container.querySelectorAll('.cube3d-sticker');
+      const offset = FACE_OFFSETS[f];
+
+      for (let i = 0; i < 9; i++) {
+        const notChar = stateStr[offset + i];
+        const colorName = NOTATION_TO_COLOR[notChar] || 'white';
+        stickers[i].style.backgroundColor = COLOR_HEX_MAP[colorName];
+      }
+    }
+
+    highlightActiveMoveFace();
+  } else {
+    render3DCubeFromDraft();
+  }
+}
+
+function render3DCubeFromDraft() {
+  FACE_KEYS.forEach((faceKey, fIdx) => {
+    const container = cube3dFaceEls[faceKey];
+    if (!container) return;
+    const stickers = container.querySelectorAll('.cube3d-sticker');
+    const faceColors = capturedFaces[fIdx];
+    for (let i = 0; i < 9; i++) {
+      if (faceColors && faceColors[i]) {
+        stickers[i].style.backgroundColor = COLOR_HEX_MAP[faceColors[i]];
+      } else {
+        stickers[i].style.backgroundColor = (i === 4) ? COLOR_HEX_MAP[FACE_CENTER_MAP[faceKey]] : '#334155';
+      }
+    }
+  });
+  highlightActiveMoveFace();
+}
+
+function highlightActiveMoveFace() {
+  let activeFace = null;
+  if (currentMoveIndex >= 0 && currentMoveIndex < solutionMoves.length) {
+    const move = solutionMoves[currentMoveIndex];
+    if (move && move.length > 0) {
+      activeFace = move[0];
+    }
+  }
+
+  for (const f of ['U', 'R', 'F', 'D', 'L', 'B']) {
+    const container = cube3dFaceEls[f];
+    if (!container) continue;
+    container.classList.toggle('active-move', f === activeFace);
+  }
+}
+
 // --- Interactive 2D Unfolded Cube Net Rendering ---
 function initNetGridCells() {
   for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
     const el = netFaceEls[f];
+    if (!el) continue;
     el.innerHTML = '';
     for (let i = 0; i < 9; i++) {
       const cell = document.createElement('div');
@@ -827,21 +1126,11 @@ function render2DCubeNet() {
   const stateStr = cubeStatesHistory[currentMoveIndex + 1];
   if (!stateStr || stateStr.length !== 54) return;
 
-  const NOTATION_TO_COLOR = {
-    U: 'white',
-    R: 'red',
-    F: 'green',
-    D: 'yellow',
-    L: 'orange',
-    B: 'blue'
-  };
-
-  const offsets = { U: 0, R: 9, F: 18, D: 27, L: 36, B: 45 };
-
   for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
     const container = netFaceEls[f];
+    if (!container) continue;
     const stickers = container.querySelectorAll('.net-sticker');
-    const offset = offsets[f];
+    const offset = FACE_OFFSETS[f];
 
     for (let i = 0; i < 9; i++) {
       const notChar = stateStr[offset + i];
@@ -1031,6 +1320,9 @@ function saveModalEdits() {
   persistDraft();
   closeModal();
   renderCapturedPreviews();
+  if (cubeStatesHistory.length === 0) {
+    render3DCubeFromDraft();
+  }
   validateAndCheckSolveReady();
 }
 
@@ -1069,6 +1361,31 @@ function updateAllTexts() {
   modalDistributionTitle.textContent = CubeI18n.t('colorDistributionTitle');
   btnModalSaveText.textContent = CubeI18n.t('btnApply');
   netTitle.textContent = CubeI18n.t('cubeNetTitle');
+
+  if (visualizerTitle) visualizerTitle.textContent = CubeI18n.t('cube3dTitle');
+  if (cube3dHintText) cube3dHintText.textContent = CubeI18n.t('cube3dHint');
+  if (labelTab3D) labelTab3D.textContent = CubeI18n.t('view3D');
+  if (labelTab2D) labelTab2D.textContent = CubeI18n.t('view2D');
+
+  if (cube3dAnglesBar) {
+    const angleMap = {
+      '-22_-32': CubeI18n.t('angleReset'),
+      '0_0': CubeI18n.t('angleFront'),
+      '-75_0': CubeI18n.t('angleTop'),
+      '0_-90': CubeI18n.t('angleRight'),
+      '0_90': CubeI18n.t('angleLeft'),
+      '75_0': CubeI18n.t('angleBottom'),
+      '0_180': CubeI18n.t('angleBack')
+    };
+    cube3dAnglesBar.querySelectorAll('.angle-btn').forEach(btn => {
+      const key = `${btn.dataset.rx}_${btn.dataset.ry}`;
+      const textSpan = btn.querySelector('.angle-text');
+      if (textSpan && angleMap[key]) {
+        textSpan.textContent = angleMap[key];
+      }
+    });
+  }
+
   updateSpeedLabel();
 }
 
