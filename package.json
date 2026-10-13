@@ -1,0 +1,24 @@
+{
+  "name": "3x3-cube",
+  "version": "1.0.0",
+  "description": "Fun for 3x3 Cube solver",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "test": "node --test tests/engine.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maui2023/3x3-cube.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/maui2023/3x3-cube/issues"
+  },
+  "homepage": "https://github.com/maui2023/3x3-cube#readme",
+  "dependencies": {
+    "cubejs": "^1.3.2"
+  }
+}

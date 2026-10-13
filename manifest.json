@@ -1,0 +1,24 @@
+{
+  "name": "Penyelesai Kiub 3x3 / 3x3 Cube Solver",
+  "short_name": "CubeSolver",
+  "description": "Mobile-First Rubik's Cube Camera Scanner & Step-by-Step Solution Player",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230f172a'/%3E%3Crect x='30' y='30' width='40' height='40' rx='6' fill='%23ef4444'/%3E%3Crect x='76' y='30' width='40' height='40' rx='6' fill='%23f8fafc'/%3E%3Crect x='122' y='30' width='40' height='40' rx='6' fill='%233b82f6'/%3E%3Crect x='30' y='76' width='40' height='40' rx='6' fill='%2310b981'/%3E%3Crect x='76' y='76' width='40' height='40' rx='6' fill='%23f59e0b'/%3E%3Crect x='122' y='76' width='40' height='40' rx='6' fill='%23ea580c'/%3E%3Crect x='30' y='122' width='40' height='40' rx='6' fill='%2338bdf8'/%3E%3Crect x='76' y='122' width='40' height='40' rx='6' fill='%2322c55e'/%3E%3Crect x='122' y='122' width='40' height='40' rx='6' fill='%23eab308'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230f172a'/%3E%3Crect x='80' y='80' width='108' height='108' rx='16' fill='%23ef4444'/%3E%3Crect x='202' y='80' width='108' height='108' rx='16' fill='%23f8fafc'/%3E%3Crect x='324' y='80' width='108' height='108' rx='16' fill='%233b82f6'/%3E%3Crect x='80' y='202' width='108' height='108' rx='16' fill='%2310b981'/%3E%3Crect x='202' y='202' width='108' height='108' rx='16' fill='%23f59e0b'/%3E%3Crect x='324' y='202' width='108' height='108' rx='16' fill='%23ea580c'/%3E%3Crect x='80' y='324' width='108' height='108' rx='16' fill='%2338bdf8'/%3E%3Crect x='202' y='324' width='108' height='108' rx='16' fill='%2322c55e'/%3E%3Crect x='324' y='324' width='108' height='108' rx='16' fill='%23eab308'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
